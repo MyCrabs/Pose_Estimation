@@ -3,6 +3,7 @@ import mediapipe as mp
 import numpy as np
 import threading
 import tensorflow as tf
+import gradio as gr
 
 label = "Warmup...."
 n_time_steps = 10
@@ -12,9 +13,11 @@ mpPose = mp.solutions.pose
 pose = mpPose.Pose()
 mpDraw = mp.solutions.drawing_utils
 
-model = tf.keras.models.load_model("modelv2.h5")
+model = tf.keras.models.load_model("DuyModel.keras")
 
 cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
 def make_landmark_timestep(results):
     c_lm = []
@@ -64,40 +67,34 @@ def detect(model, lm_list):
     class_index = np.argmax(results, axis=1)[0]
     # Map the index to the corresponding label
     if class_index == 0:
-        label = "SWING HAND"
+        label = "FALSE"
     elif class_index == 1:
-        label = "SWING BODY"
-    elif class_index == 2:
-        label = "HEAD NODDING"
-    elif class_index == 3:
-        label = "HEART SYMBOL"
+        label = "RIGHT"
+    # elif class_index == 2:
+    #     label = "HEAD NODDING"
+    # elif class_index == 3:
+    #     label = "HEART SYMBOL"
     return label
 
 
 i = 0
 warmup_frames = 10
-
 while True:
-
     success, img = cap.read()
     imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     results = pose.process(imgRGB)
     i = i + 1
     if i > warmup_frames:
         print("Start detect....")
-
         if results.pose_landmarks:
             c_lm = make_landmark_timestep(results)
-
             lm_list.append(c_lm)
             if len(lm_list) == n_time_steps:
                 # predict
                 t1 = threading.Thread(target=detect, args=(model, lm_list,))
                 t1.start()
                 lm_list = []
-
             img = draw_landmark_on_image(mpDraw, results, img)
-
     img = draw_class_on_image(label, img)
     cv2.imshow("Image", img)
     if cv2.waitKey(1) == ord('q'):
@@ -105,3 +102,4 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
+

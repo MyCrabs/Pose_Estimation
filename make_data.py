@@ -3,6 +3,8 @@ import mediapipe as mp
 import pandas as pd
 
 cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
 # Khởi tạo thư viện mediapipe
 mpPose = mp.solutions.pose
@@ -10,7 +12,7 @@ pose = mpPose.Pose()
 mpDraw = mp.solutions.drawing_utils
 
 lm_list = []
-label = "HEART_SYMBOL"
+label = "FALSE_POSTURE"
 no_of_frames = 600
 
 def make_landmark_timestep(results):

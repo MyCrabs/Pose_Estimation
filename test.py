@@ -1,5 +1,105 @@
-﻿from keras.models import load_model
+﻿import cv2
+import mediapipe as mp
+import numpy as np
+import tensorflow as tf
+import gradio as gr
+from PIL import Image
 
-model = load_model("modelv2.h5")
+# Setup
+label = "Warmup...."
+n_time_steps = 10
 
+mpPose = mp.solutions.pose
+pose = mpPose.Pose()
+mpDraw = mp.solutions.drawing_utils
 
+model = tf.keras.models.load_model("NewModel.keras")
+cap = cv2.VideoCapture(0)
+
+def make_landmark_timestep(results):
+    c_lm = []
+    for id, lm in enumerate(results.pose_landmarks.landmark):
+        c_lm.append(lm.x)
+        c_lm.append(lm.y)
+        c_lm.append(lm.z)
+        c_lm.append(lm.visibility)
+    return c_lm
+
+def draw_landmark_on_image(mpDraw, results, img):
+    mpDraw.draw_landmarks(img, results.pose_landmarks, mpPose.POSE_CONNECTIONS)
+    for id, lm in enumerate(results.pose_landmarks.landmark):
+        h, w, c = img.shape
+        print(id, lm)
+        cx, cy = int(lm.x * w), int(lm.y * h)
+        cv2.circle(img, (cx, cy), 5, (255, 0, 0), cv2.FILLED)
+    return img
+
+def draw_class_on_image(label, img):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    bottomLeftCornerOfText = (10, 30)
+    fontScale = 1
+    fontColor = (0, 165, 255)
+    thickness = 2
+    lineType = 2
+    cv2.putText(img, label,
+                bottomLeftCornerOfText,
+                font,
+                fontScale,
+                fontColor,
+                thickness,
+                lineType)
+    return img
+
+def detect(model, lm_list):
+    global label
+    lm_list = np.array(lm_list)
+    lm_list = np.expand_dims(lm_list, axis=0)
+    print(lm_list.shape) 
+    results = model.predict(lm_list)
+    print("Result = " + str(results)) 
+    # Get the index of the highest probability
+    max_prob = np.max(results)
+    class_index = np.argmax(results, axis=1)[0]
+    # Map the index to the corresponding label
+    if max_prob < 0.9:
+        label == "NONE"
+    else:
+        if class_index == 0:
+            label = "BUTT KICKS"
+        elif class_index == 1:
+            label = "HIGH KNEES"
+        elif class_index == 2:
+            label = "JUMPING JACKS" 
+    return label
+
+def capture_video():
+    lm_list = []
+    i = 0
+    warmup_frames = 10
+    label = "NONE"
+    while True:
+        success, img = cap.read()
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        results = pose.process(imgRGB)
+        i = i + 1
+        if i > warmup_frames:
+            print("Start detect....")
+            if results.pose_landmarks:
+                c_lm = make_landmark_timestep(results)
+                lm_list.append(c_lm)
+                if len(lm_list) == n_time_steps:
+                    label = detect(model, lm_list)
+                    lm_list = []
+                img = draw_landmark_on_image(mpDraw, results, img)
+        img = draw_class_on_image(label, img)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        yield img
+
+iface = gr.Interface(
+    fn=capture_video,
+    inputs=None,
+    outputs=gr.Image(type="pil"),
+    live=True
+)
+    
+iface.launch()

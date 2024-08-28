@@ -7,13 +7,13 @@ import gradio as gr
 
 label = "Warmup...."
 n_time_steps = 10
-lm_list = []
+
 
 mpPose = mp.solutions.pose
 pose = mpPose.Pose()
 mpDraw = mp.solutions.drawing_utils
 
-model = tf.keras.models.load_model("DuyModel.keras")
+model = tf.keras.models.load_model("NewModel.keras")
 
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
@@ -43,7 +43,7 @@ def draw_class_on_image(label, img):
     font = cv2.FONT_HERSHEY_SIMPLEX
     bottomLeftCornerOfText = (10, 30)
     fontScale = 1
-    fontColor = (0, 255, 0)
+    fontColor = (0, 165, 255)
     thickness = 2
     lineType = 2
     cv2.putText(img, label,
@@ -64,19 +64,21 @@ def detect(model, lm_list):
     results = model.predict(lm_list)
     print("Result = " + str(results)) 
     # Get the index of the highest probability
+    max_prob = np.max(results)
     class_index = np.argmax(results, axis=1)[0]
     # Map the index to the corresponding label
-    if class_index == 0:
-        label = "FALSE"
-    elif class_index == 1:
-        label = "RIGHT"
-    # elif class_index == 2:
-    #     label = "HEAD NODDING"
-    # elif class_index == 3:
-    #     label = "HEART SYMBOL"
+    if max_prob < 0.9:
+        label == "NONE"
+    else:
+        if class_index == 0:
+            label = "BUTT KICKS"
+        elif class_index == 1:
+            label = "HIGH KNEES"
+        elif class_index == 2:
+            label = "JUMPING JACKS" 
     return label
 
-
+lm_list = []
 i = 0
 warmup_frames = 10
 while True:
@@ -99,7 +101,6 @@ while True:
     cv2.imshow("Image", img)
     if cv2.waitKey(1) == ord('q'):
         break
-
 cap.release()
 cv2.destroyAllWindows()
 

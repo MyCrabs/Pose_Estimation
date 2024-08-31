@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 import gradio as gr
 from PIL import Image
+import time
 
 # Setup
 label = "Warmup...."
@@ -34,9 +35,16 @@ def draw_landmark_on_image(mpDraw, results, img):
         cv2.circle(img, (cx, cy), 5, (255, 0, 0), cv2.FILLED)
     return img
 
-def draw_class_on_image(label, img):
+def cal_fps(frame_count, start_time):
+    current_time = time.time()
+    elapsed_time = current_time - start_time
+    fps = frame_count / elapsed_time
+    return str(int(fps))
+
+def draw_class_on_image(label, fps, img):
     font = cv2.FONT_HERSHEY_SIMPLEX
     bottomLeftCornerOfText = (10, 30)
+    CornerOfFPS = (10, 70)
     fontScale = 1
     fontColor = (0, 165, 255)
     thickness = 2
@@ -48,6 +56,8 @@ def draw_class_on_image(label, img):
                 fontColor,
                 thickness,
                 lineType)
+    cv2.putText(img, fps,
+                CornerOfFPS, font, fontScale, fontColor, thickness, lineType)
     return img
 
 def detect(model, lm_list):
@@ -75,15 +85,19 @@ def detect(model, lm_list):
 def capture_video():
     lm_list = []
     i = 0
-    warmup_frames = 10
+    warmup_frames = 20
     label = "NONE"
+    fps ="0"
+    frame_count = 0
+    start_time = time.time()
     while True:
         success, img = cap.read()
+        frame_count += 1
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         results = pose.process(imgRGB)
         i = i + 1
         if i > warmup_frames:
-            print("Start detect....")
+            print("Starting ....")
             if results.pose_landmarks:
                 c_lm = make_landmark_timestep(results)
                 lm_list.append(c_lm)
@@ -91,7 +105,11 @@ def capture_video():
                     label = detect(model, lm_list)
                     lm_list = []
                 img = draw_landmark_on_image(mpDraw, results, img)
-        img = draw_class_on_image(label, img)
+        if time.time() - start_time >= 1:
+            fps = cal_fps(frame_count, start_time)
+            frame_count = 0
+            start_time = time.time()
+        img = draw_class_on_image(label, fps, img)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         yield img
 
@@ -101,5 +119,5 @@ iface = gr.Interface(
     outputs=gr.Image(type="pil"),
     live=True
 )
-    
+
 iface.launch()

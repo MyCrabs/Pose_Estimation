@@ -14,8 +14,9 @@ mpPose = mp.solutions.pose
 pose = mpPose.Pose()
 mpDraw = mp.solutions.drawing_utils
 
-model = tf.keras.models.load_model("NewModel.keras")
+model = tf.keras.models.load_model("NewModel3.keras")
 cap = cv2.VideoCapture(0)
+
 
 def make_landmark_timestep(results):
     c_lm = []
@@ -56,7 +57,7 @@ def draw_class_on_image(label, fps, img):
                 fontColor,
                 thickness,
                 lineType)
-    cv2.putText(img, fps,
+    cv2.putText(img, f"FPS:{fps}",
                 CornerOfFPS, font, fontScale, fontColor, thickness, lineType)
     return img
 
@@ -67,10 +68,8 @@ def detect(model, lm_list):
     print(lm_list.shape) 
     results = model.predict(lm_list)
     print("Result = " + str(results)) 
-    # Get the index of the highest probability
     max_prob = np.max(results)
     class_index = np.argmax(results, axis=1)[0]
-    # Map the index to the corresponding label
     if max_prob < 0.9:
         label == "NONE"
     else:
@@ -112,7 +111,47 @@ def capture_video():
         img = draw_class_on_image(label, fps, img)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         yield img
+        
+def process_video(path_video):
+    capture = cv2.VideoCapture(f"{path_video}")
+    lm_list = []
+    i = 0
+    warmup_frames = 20
+    label = "NONE"
+    fps = "0"
+    frame_count = 0
+    start_time = time.time()
 
+    while True:
+        success, img = capture.read()
+        if not success:
+            print("Failed to read frame or video ended.")
+            break
+        
+        frame_count += 1
+        imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        results = pose.process(imgRGB)
+        i += 1
+        
+        if i > warmup_frames:
+            print("Starting ....")
+            if results.pose_landmarks:
+                c_lm = make_landmark_timestep(results)
+                lm_list.append(c_lm)
+                if len(lm_list) == n_time_steps:
+                    label = detect(model, lm_list)
+                    lm_list = []
+                img = draw_landmark_on_image(mpDraw, results, img)
+        
+        if time.time() - start_time >= 1:
+            fps = cal_fps(frame_count, start_time)
+            frame_count = 0
+            start_time = time.time()
+
+        img = draw_class_on_image(label, fps, img)
+        cv2.imshow("Video", img)
+
+        
 iface = gr.Interface(
     fn=capture_video,
     inputs=None,
@@ -120,4 +159,5 @@ iface = gr.Interface(
     live=True
 )
 
-iface.launch()
+#iface.launch()
+process_video("test_video.mp4")

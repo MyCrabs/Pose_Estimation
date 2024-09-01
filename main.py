@@ -78,11 +78,15 @@ def detect(model, lm_list):
             label = "JUMPING JACKS" 
     return label
 
+cap1 = cv2.VideoCapture("test_video.mp4")
 lm_list = []
 i = 0
 warmup_frames = 10
 while True:
-    success, img = cap.read()
+    success, img = cap1.read()
+    if not success:
+        print("Failed to read frame or video ended")
+        break
     imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     results = pose.process(imgRGB)
     i = i + 1
@@ -98,7 +102,7 @@ while True:
                 lm_list = []
             img = draw_landmark_on_image(mpDraw, results, img)
     img = draw_class_on_image(label, img)
-    cv2.imshow("Image", img)
+    cv2.imshow("Video", img)
     if cv2.waitKey(1) == ord('q'):
         break
 cap.release()

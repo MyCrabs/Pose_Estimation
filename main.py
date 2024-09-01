@@ -55,7 +55,6 @@ def draw_class_on_image(label, img):
                 lineType)
     return img
 
-
 def detect(model, lm_list):
     global label
     lm_list = np.array(lm_list)
@@ -105,6 +104,7 @@ while True:
     cv2.imshow("Video", img)
     if cv2.waitKey(1) == ord('q'):
         break
+    
 cap.release()
 cv2.destroyAllWindows()
 

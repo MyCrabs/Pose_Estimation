@@ -12,7 +12,7 @@ pose = mpPose.Pose()
 mpDraw = mp.solutions.drawing_utils
 
 lm_list = []
-label = "BUTT_KICKS"
+label = "NONE"
 no_of_frames = 600
 
 def make_landmark_timestep(results):
